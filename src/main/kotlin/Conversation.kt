@@ -1,6 +1,5 @@
 package sh.nhp.kuribochat
 
-import dev.kord.common.entity.MessageFlag
 import dev.kord.common.entity.Snowflake
 import dev.kord.core.behavior.channel.createMessage
 import dev.kord.core.behavior.channel.withTyping
@@ -9,22 +8,15 @@ import dev.kord.core.entity.Message
 import dev.kord.rest.builder.message.create.allowedMentions
 import dev.kord.rest.builder.message.modify.allowedMentions
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Instant
 
 class Conversation(scope: CoroutineScope) {
     private val queue = Channel<Message>(Channel.UNLIMITED)
 
     private val memoryLength = 10
-    private val context = mutableListOf<AIMessage>()
-    private val references = mutableListOf<Snowflake>()
+    private val context = mutableListOf<Context>()
 
     init {
         scope.launch {
@@ -38,39 +30,65 @@ class Conversation(scope: CoroutineScope) {
                     contextMessage = contextMessage.substringAfter(">")
                 }
 
-                context.add(AIMessage.User(contextMessage.trim(), message.author!!.username))
+                val userContext = Context(
+                    AIMessage.User(contextMessage.trim(), message.author!!.username),
+                    listOf(message.id)
+                )
 
-                while (context.count() > memoryLength) {
-                    context.removeAt(0)
-                }
-
-                var gatheredContent = ""
-                var newMessage: Message? = null
+                context.add(userContext)
 
                 message.channel.withTyping {
-                    AIChat.generateResponse(context)
-                        .onEach {
-                            gatheredContent += it
+                    var fullResponse = ""
+                    var responsePart = ""
+                    val newMessages = mutableListOf<Message>()
 
-                            if (newMessage == null) {
-                                newMessage = message.channel.createMessage {
-                                    content = gatheredContent
+                    AIChat.generateResponse(context.aiMessages().toList())
+                        .onEach { chunk ->
+                            if (newMessages.isEmpty()) {
+                                responsePart += chunk
+
+                                newMessages += message.channel.createMessage {
+                                    content = responsePart
                                     messageReference = message.id
                                     allowedMentions {}
                                 }
-
-                                references.add(newMessage!!.id)
                             } else {
-                                newMessage = newMessage!!.edit {
-                                    content = gatheredContent
+                                // Discord only allows up to 2000 characters per message
+                                // Maybe split this more intelligently in the future
+                                if ((responsePart.length + chunk.length) > 2000) {
+                                    val last = newMessages.last()
+                                    val edited = last.edit {
+                                        content = responsePart
+                                        allowedMentions {}
+                                    }
+                                    newMessages[newMessages.lastIndex] = edited
+
+                                    newMessages += message.channel.createMessage {
+                                        content = chunk
+                                        allowedMentions {}
+                                    }
+
+                                    fullResponse += responsePart
+                                    responsePart = ""
+                                }
+
+                                responsePart += chunk
+
+                                val last = newMessages.last()
+                                val edited = last.edit {
+                                    content = responsePart
                                     allowedMentions {}
                                 }
+                                newMessages[newMessages.lastIndex] = edited
                             }
+                        }.onCompletion {
+                            fullResponse += responsePart
+                            context += Context(
+                                AIMessage.Bot(fullResponse),
+                                newMessages.map { it.id }
+                            )
                         }.catch {
-                            if (newMessage != null) {
-                                newMessage!!.delete()
-                                references.removeLast()
-                            }
+                            messages.onEach { it.delete() }
 
                             message.channel.createMessage {
                                 content = "Uh-oh, looks like the bot did a fucky wucky!!\n```\n$it\n```"
@@ -79,15 +97,9 @@ class Conversation(scope: CoroutineScope) {
                         }.collect()
                 }
 
-                if (newMessage == null) continue
-                if (references.count() > memoryLength) {
-                    references.removeAt(0)
-                }
-
-                context.add(AIMessage.Bot(gatheredContent))
-
-                while (context.count() > memoryLength) {
-                    context.removeAt(0)
+                // Prune the message context that likely will not be sent to the bot anyway
+                if (context.sumOf { it.aiMessage.tokenCount } > 3072) {
+                    context.removeFirst()
                 }
             }
         }
@@ -97,19 +109,20 @@ class Conversation(scope: CoroutineScope) {
         queue.send(message)
     }
 
+    fun getAIMessages() =
+        context.aiMessages()
+
     fun references(id: Snowflake): Boolean {
-        return references.contains(id)
+        val contextMessage = context.find {
+            it.discordMessages.contains(id)
+        }
+        return contextMessage != null
     }
 
-    fun getContext(): List<AIMessage> = context
+    private data class Context(
+        val aiMessage: AIMessage,
+        val discordMessages: List<Snowflake>
+    )
 
-    /*private suspend fun generateResponse(): String {
-        val response = AIChat.generateResponse(context)
-
-        return if (response.isSuccess) {
-            response.getOrThrow()
-        } else {
-            "Error: Nadia probably broke something!\n```\n${response.exceptionOrNull()}\n```"
-        }
-    }*/
+    private fun List<Context>.aiMessages() = asSequence().map { it.aiMessage }
 }

@@ -1,10 +1,8 @@
 package sh.nhp.kuribochat
 
 import com.aallam.openai.api.BetaOpenAI
-import com.aallam.openai.api.chat.ChatCompletionChunk
+import com.aallam.openai.api.chat.*
 import com.aallam.openai.api.chat.ChatCompletionRequest
-import com.aallam.openai.api.chat.ChatMessage
-import com.aallam.openai.api.chat.ChatRole
 import com.aallam.openai.api.exception.OpenAIException
 import com.aallam.openai.api.model.ModelId
 import com.aallam.openai.client.OpenAI
@@ -18,7 +16,7 @@ import kotlin.system.exitProcess
 @OptIn(DelicateCoroutinesApi::class, BetaOpenAI::class)
 object AIChat {
     val botName = "Kuribo"
-    private val defaultPrompt: String
+    private val defaultPrompt: AIMessage.System
 
     private val openAI: OpenAI
     val manager = ConversationManager(GlobalScope)
@@ -37,9 +35,10 @@ object AIChat {
         }
 
         try {
-            defaultPrompt = File(promptFileName)
+            val promptStr = File(promptFileName)
                 .readText()
                 .replace("{BOT}", botName)
+            defaultPrompt = AIMessage.System(promptStr)
         } catch (e: Exception) {
             println("Could not read prompt file: $e")
             exitProcess(1)
@@ -49,17 +48,37 @@ object AIChat {
     }
 
     suspend fun generateResponse(context: List<AIMessage>): Flow<String> {
-        val chatMessages: List<ChatMessage> = context.map {
-            when (it) {
-                is AIMessage.Bot -> ChatMessage(ChatRole.Assistant, it.content)
-                is AIMessage.User -> ChatMessage(ChatRole.User, "${it.userName}: ${it.content}")
-            }
+        val maxRequestTokens = 3072
+        val promptTokens = defaultPrompt.tokenCount
+        val maxContextTokens = maxRequestTokens - promptTokens
+
+        var cumulativeTokens = 0
+        val chatContext = context.takeLastWhile {
+            cumulativeTokens += it.tokenCount
+            cumulativeTokens <= maxContextTokens
         }
 
-        val convoWithPrompt = listOf(ChatMessage(ChatRole.System, defaultPrompt)) + chatMessages
+        val requestMessages = (listOf(defaultPrompt) + chatContext).asChatMessages()
 
-        val chatCompletionRequest = ChatCompletionRequest(model = ModelId("gpt-3.5-turbo"), messages = convoWithPrompt)
+        val chatCompletionRequest = chatCompletionRequest {
+            model = ModelId("gpt-3.5-turbo")
+            messages = requestMessages.toList()
+            maxTokens = 1024
+        }
+
         val completionFlow = openAI.chatCompletions(chatCompletionRequest)
+
+        // Occasionally, even when specifying user names with the name field, ChatGPT will respond with a message starting with the bot name
+        // ...so we'll cut that out.
+        fun String.trimBotPrefix(): String {
+            var outStr = this
+            if (outStr.startsWith(botName)) {
+                outStr = outStr.removePrefix("${botName}:")
+                outStr = outStr.removePrefix(botName)
+                outStr = outStr.trimStart()
+            }
+            return outStr
+        }
 
         return flow {
             var currentPart = ""
@@ -69,7 +88,7 @@ object AIChat {
             completionFlow.onEach {
                 if (it.choices[0].finishReason != null) {
                     emit(when (isFirstPart) {
-                        true -> currentPart.removePrefix("${botName}:")
+                        true -> currentPart.trimBotPrefix()
                         false -> currentPart
                     })
                     return@onEach
@@ -81,9 +100,10 @@ object AIChat {
                     currentPart += it.choices[0].delta!!.content ?: ""
                 } else {
                     if (isFirstPart) {
-                        currentPart = currentPart.removePrefix("${botName}:")
+                        currentPart = currentPart.trimBotPrefix()
                         isFirstPart = false
                     }
+
                     emit(currentPart)
                     currentPart = it.choices[0].delta!!.content ?: ""
                 }

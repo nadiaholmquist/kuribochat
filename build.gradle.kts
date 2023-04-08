@@ -16,6 +16,7 @@ dependencies {
     implementation("ch.qos.logback:logback-classic:1.4.6")
     implementation("com.aallam.openai:openai-client:3.2.0")
     implementation("dev.kord:kord-core:0.8.2")
+    implementation("com.knuddels:jtokkit:0.2.0")
 }
 
 kotlin {
