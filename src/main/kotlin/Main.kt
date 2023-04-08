@@ -26,11 +26,6 @@ suspend fun main() {
                 val convo = AIChat.manager.lookupReference(reference.id)
 
                 if (convo != null) {
-                    if (message.content == "dump") {
-                        message.channel.createMessage(convo.getContext().joinToString("\n"))
-                        return@on
-                    }
-
                     convo.addMessage(message)
                 } else {
                     message.channel.createMessage {
