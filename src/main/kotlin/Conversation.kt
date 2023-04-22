@@ -9,7 +9,10 @@ import dev.kord.rest.builder.message.create.allowedMentions
 import dev.kord.rest.builder.message.modify.allowedMentions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
 class Conversation(scope: CoroutineScope) {
@@ -21,9 +24,7 @@ class Conversation(scope: CoroutineScope) {
     init {
         scope.launch {
             for (message in queue) {
-                if (message.author == null) {
-                    continue
-                }
+                val author = message.author ?: continue
 
                 var contextMessage = message.content
                 if (contextMessage.startsWith("<@")) {
@@ -31,7 +32,7 @@ class Conversation(scope: CoroutineScope) {
                 }
 
                 val userContext = Context(
-                    AIMessage.User(contextMessage.trim(), message.author!!.username),
+                    AIMessage.User(contextMessage.trim(), author.tag),
                     listOf(message.id)
                 )
 

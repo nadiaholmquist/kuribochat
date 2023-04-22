@@ -10,12 +10,14 @@ import com.knuddels.jtokkit.api.ModelType
 
 sealed class AIMessage(val content: String) {
     class Bot(content: String) : AIMessage(content)
-    class User(content: String, val userName: String) : AIMessage(content)
+    class User(content: String, val userTag: String) : AIMessage(content) {
+        val userName by lazy { userTag.substring(0 until userTag.lastIndexOf('#')) }
+    }
     class System(content: String) : AIMessage(content)
 
     val tokenCount by lazy {
         when (this) {
-            is AIMessage.User -> encoding.countTokens("${this.userName}: ${this.content}")
+            is User -> encoding.countTokens("${this.userName}: ${this.content}")
             else -> encoding.countTokens(this.content)
         }
         encoding.countTokens(this.content)
@@ -36,7 +38,7 @@ sealed class AIMessage(val content: String) {
             is User -> ChatRole.User
             is System -> ChatRole.System
         },
-        content, if (this is AIMessage.User) { userName } else { null }
+        content, if (this is User) { userName } else { null }
     )
 
     companion object {

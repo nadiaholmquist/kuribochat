@@ -1,15 +1,15 @@
 package sh.nhp.kuribochat
 
 import com.aallam.openai.api.BetaOpenAI
-import com.aallam.openai.api.chat.*
-import com.aallam.openai.api.chat.ChatCompletionRequest
-import com.aallam.openai.api.exception.OpenAIException
+import com.aallam.openai.api.chat.chatCompletionRequest
 import com.aallam.openai.api.model.ModelId
 import com.aallam.openai.client.OpenAI
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.yield
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onEach
 import java.io.File
 import kotlin.system.exitProcess
 
@@ -65,12 +65,18 @@ object AIChat {
             cumulativeTokens <= maxContextTokens
         }
 
+        val userTag = when (val lastUserMessage = chatContext.findLast { it is AIMessage.User }) {
+            is AIMessage.User -> lastUserMessage.userTag
+            else -> null
+        }
+
         val requestMessages = (listOf(defaultPrompt) + chatContext).asChatMessages()
 
         val chatCompletionRequest = chatCompletionRequest {
             model = ModelId("gpt-3.5-turbo")
             messages = requestMessages.toList()
             maxTokens = 1024
+            user = userTag
         }
 
         val completionFlow = openAI.chatCompletions(chatCompletionRequest)
