@@ -14,6 +14,10 @@ sealed class AIMessage(val content: String) {
     class System(content: String) : AIMessage(content)
 
     val tokenCount by lazy {
+        when (this) {
+            is AIMessage.User -> encoding.countTokens("${this.userName}: ${this.content}")
+            else -> encoding.countTokens(this.content)
+        }
         encoding.countTokens(this.content)
     }
 
