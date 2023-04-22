@@ -15,7 +15,7 @@ import kotlin.system.exitProcess
 
 @OptIn(DelicateCoroutinesApi::class, BetaOpenAI::class)
 object AIChat {
-    val botName = "Kuribo"
+    private val botName: String
     private val defaultPrompt: AIMessage.System
 
     private val openAI: OpenAI
@@ -27,6 +27,13 @@ object AIChat {
             println("OPENAI_API_KEY environment variable not set")
             exitProcess(1)
         }
+
+        val name = System.getenv("KURIBO_BOT_NAME")
+        if (name == null) {
+            println("KURIBO_BOT_NAME variable was not set.")
+            exitProcess(1)
+        }
+        botName = name
 
         val promptFileName = System.getenv("PROMPT_FILE")
         if (promptFileName == null) {
@@ -72,9 +79,8 @@ object AIChat {
         // ...so we'll cut that out.
         fun String.trimBotPrefix(): String {
             var outStr = this
-            if (outStr.startsWith(botName)) {
+            if (outStr.startsWith("$botName:")) {
                 outStr = outStr.removePrefix("${botName}:")
-                outStr = outStr.removePrefix(botName)
                 outStr = outStr.trimStart()
             }
             return outStr
