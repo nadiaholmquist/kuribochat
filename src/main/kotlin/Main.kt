@@ -14,6 +14,9 @@ suspend fun main() {
         exitProcess(1)
     }
     val discord = Kord(discordToken)
+    // Reference this here to run its constructor before it's actually used
+    // Otherwise failing to read the required environment variables only gives an error when a user pings the bot
+    AIChat
 
     discord.on<MessageCreateEvent> {
         if (message.author == discord.getSelf()) {

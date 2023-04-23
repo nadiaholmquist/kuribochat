@@ -3,4 +3,4 @@ build/
 .gradle/
 .DS_Store
 prompt.txt
-deploy.sh
+env.list

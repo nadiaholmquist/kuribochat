@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "sh.nhp"
-version = "1.0-SNAPSHOT"
+version = "1.1"
 
 repositories {
     mavenCentral()
@@ -25,6 +25,13 @@ kotlin {
 
 tasks.wrapper {
     version = "8.0.10"
+}
+
+tasks.jar {
+    manifest.attributes["Main-Class"] = "sh.nhp.kuribochat.MainKt"
+    val dependencies = configurations.runtimeClasspath.get().map(::zipTree)
+    from(dependencies)
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 application {
