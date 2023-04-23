@@ -85,8 +85,9 @@ object AIChat {
         // ...so we'll cut that out.
         fun String.trimBotPrefix(): String {
             var outStr = this
-            if (outStr.startsWith("$botName:")) {
+            if (outStr.startsWith(botName)) {
                 outStr = outStr.removePrefix("${botName}:")
+                outStr = outStr.removePrefix("${botName}\n")
                 outStr = outStr.trimStart()
             }
             return outStr
