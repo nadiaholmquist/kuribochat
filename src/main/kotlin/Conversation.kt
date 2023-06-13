@@ -27,9 +27,14 @@ class Conversation(scope: CoroutineScope) {
                 val author = message.author ?: continue
 
                 var contextMessage = message.content
-                if (contextMessage.startsWith("<@")) {
-                    contextMessage = contextMessage.substringAfter(">")
-                }
+
+                val selfId = message.kord.selfId.value
+                message.mentionedUsers.onEach {
+                    if (it.id.value == selfId) {
+                        contextMessage = contextMessage.removePrefix("<@$selfId>").trimStart()
+                    }
+                    contextMessage = contextMessage.replace("<@${it.id.value}>", it.username)
+                }.collect()
 
                 val userContext = Context(
                     AIMessage.User(contextMessage.trim(), author.tag),
