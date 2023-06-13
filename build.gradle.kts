@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "sh.nhp"
-version = "1.1"
+version = "1.1.1"
 
 repositories {
     mavenCentral()
@@ -37,3 +37,8 @@ tasks.jar {
 application {
     mainClass.set("sh.nhp.kuribochat.MainKt")
 }
+
+val distZip by tasks
+val distTar by tasks
+distZip.enabled = false
+distTar.enabled = false
