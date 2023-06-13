@@ -38,12 +38,19 @@ sealed class AIMessage(val content: String) {
             is User -> ChatRole.User
             is System -> ChatRole.System
         },
-        content, if (this is User) { userName } else { null }
+        content, if (this is User) { filterName(userName) } else { null }
     )
+
+    private fun filterName(name: String): String? {
+        // Name must match [A-Za-z0-9_-]{1,64}
+        val newName = name.take(64).replace(validNameRegex, "")
+        return if (newName.isEmpty()) null else newName
+    }
 
     companion object {
         private val encodingRegistry = Encodings.newDefaultEncodingRegistry()
         private val encoding: Encoding = encodingRegistry.getEncodingForModel(ModelType.GPT_3_5_TURBO)
+        private val validNameRegex = Regex("[^A-Za-z0-9_-]")
     }
 }
 

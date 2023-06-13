@@ -45,6 +45,7 @@ object AIChat {
             val promptStr = File(promptFileName)
                 .readText()
                 .replace("{BOT}", botName)
+                .trim()
             defaultPrompt = AIMessage.System(promptStr)
         } catch (e: Exception) {
             println("Could not read prompt file: $e")
@@ -73,7 +74,7 @@ object AIChat {
         val requestMessages = (listOf(defaultPrompt) + chatContext).asChatMessages()
 
         val chatCompletionRequest = chatCompletionRequest {
-            model = ModelId("gpt-3.5-turbo")
+            model = ModelId("gpt-3.5-turbo-0613")
             messages = requestMessages.toList()
             maxTokens = 1024
             user = userTag
