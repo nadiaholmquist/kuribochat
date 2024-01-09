@@ -5,14 +5,11 @@ import com.aallam.openai.api.chat.ChatMessage
 import com.aallam.openai.api.chat.ChatRole
 import com.knuddels.jtokkit.Encodings
 import com.knuddels.jtokkit.api.Encoding
-import com.knuddels.jtokkit.api.EncodingRegistry
 import com.knuddels.jtokkit.api.ModelType
 
 sealed class AIMessage(val content: String) {
     class Bot(content: String) : AIMessage(content)
-    class User(content: String, val userTag: String) : AIMessage(content) {
-        val userName by lazy { userTag.substring(0 until userTag.lastIndexOf('#')) }
-    }
+    class User(content: String, val userName: String) : AIMessage(content)
     class System(content: String) : AIMessage(content)
 
     val tokenCount by lazy {

@@ -66,18 +66,18 @@ object AIChat {
             cumulativeTokens <= maxContextTokens
         }
 
-        val userTag = when (val lastUserMessage = chatContext.findLast { it is AIMessage.User }) {
-            is AIMessage.User -> lastUserMessage.userTag
+        val userName = when (val lastUserMessage = chatContext.findLast { it is AIMessage.User }) {
+            is AIMessage.User -> lastUserMessage.userName
             else -> null
         }
 
         val requestMessages = (listOf(defaultPrompt) + chatContext).asChatMessages()
 
         val chatCompletionRequest = chatCompletionRequest {
-            model = ModelId("gpt-3.5-turbo-0613")
+            model = ModelId("gpt-3.5-turbo-1106")
             messages = requestMessages.toList()
             maxTokens = 1024
-            user = userTag
+            user = userName
         }
 
         val completionFlow = openAI.chatCompletions(chatCompletionRequest)
@@ -108,10 +108,8 @@ object AIChat {
                     return@onEach
                 }
 
-                if (it.choices[0].delta == null) return@onEach
-
                 if (currentPart.length < partLengthLimit) {
-                    currentPart += it.choices[0].delta!!.content ?: ""
+                    currentPart += it.choices[0].delta.content ?: ""
                 } else {
                     if (isFirstPart) {
                         currentPart = currentPart.trimBotPrefix()
@@ -119,7 +117,7 @@ object AIChat {
                     }
 
                     emit(currentPart)
-                    currentPart = it.choices[0].delta!!.content ?: ""
+                    currentPart = it.choices[0].delta.content ?: ""
                 }
             }.collect()
         }

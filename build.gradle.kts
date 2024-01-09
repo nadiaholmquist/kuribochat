@@ -13,10 +13,10 @@ repositories {
 dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
 
-    implementation("ch.qos.logback:logback-classic:1.4.6")
-    implementation("com.aallam.openai:openai-client:3.2.0")
-    implementation("dev.kord:kord-core:0.8.2")
-    implementation("com.knuddels:jtokkit:0.2.0")
+    implementation("ch.qos.logback:logback-classic:1.4.14")
+    implementation("com.aallam.openai:openai-client:3.6.2")
+    implementation("dev.kord:kord-core:0.12.0")
+    implementation("com.knuddels:jtokkit:0.6.1")
 }
 
 kotlin {
