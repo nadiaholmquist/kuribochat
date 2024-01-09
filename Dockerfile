@@ -9,7 +9,7 @@ RUN gradle build
 # Package stage
 
 FROM openjdk:20
-ENV JAR_NAME=kuribochat-1.1.1.jar
+ENV JAR_NAME=kuribochat-1.1.2.jar
 ENV APP_HOME=/usr/app/
 WORKDIR $APP_HOME
 COPY --from=BUILD $APP_HOME/build/libs/$JAR_NAME .
